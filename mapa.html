@@ -1,0 +1,347 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f0f2f5;
+      overflow: hidden;
+    }
+
+    /* HEADER - aparece só no mobile */
+    header {
+      background: #005bbb;
+      color: white;
+      padding: 15px 20px;
+      font-size: 20px;
+      font-weight: bold;
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    @media(max-width: 800px) {
+      header {
+        display: flex;
+      }
+    }
+
+    #menuBtn {
+      background: white;
+      color: #005bbb;
+      font-size: 20px;
+      font-weight: bold;
+      border: none;
+      border-radius: 6px;
+      width: 150px;
+      height: 34px;
+      cursor: pointer;
+    }
+
+    #container {
+      display: flex;
+      height: 100vh;
+    }
+
+    /* Sidebar desktop */
+    #sidebar {
+      width: 300px;
+      background: white;
+      border-right: 1px solid #ddd;
+      padding: 15px;
+      overflow-y: auto;
+      transition: .25s;
+      z-index: 1000;
+    }
+
+    /* Sidebar mobile */
+    @media(max-width: 800px) {
+      #sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        transform: translateX(-100%);
+        box-shadow: 0 0 15px rgba(0,0,0,0.4);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      #sidebar.open {
+        transform: translateX(0);
+      }
+    }
+
+    /* Botão fechar dentro da sidebar */
+    #closeSidebar {
+      display: none;
+      background: #005bbb;
+      color: white;
+      font-size: 18px;
+      font-weight: bold;
+      border: none;
+      padding: 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    @media(max-width: 800px) {
+      #closeSidebar {
+        display: block;
+      }
+    }
+
+    #map {
+      flex: 1;
+      height: 100%;
+    }
+
+    /* Busca */
+    .search-box {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 15px;
+      margin-bottom: 10px;
+    }
+
+    /* Lista */
+    .item {
+      padding: 8px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .item:hover {
+      background: #e3edf8;
+    }
+
+    h2 {
+      margin: 0 0 10px 0;
+      text-align: center;
+      font-size: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Mobile header -->
+<header>
+  Clientes Ideal
+  <button id="menuBtn">BUSCA</button>
+</header>
+
+<div id="container">
+
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <button id="closeSidebar">Fechar X</button>
+
+    <h2>Clientes</h2>
+
+
+
+    <input type="text" id="search" class="search-box" placeholder="Buscar cliente...">
+
+    <div id="list"></div>
+  </div>
+
+  <!-- Mapa -->
+  <div id="map"></div>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+  const map = L.map('map', {
+    maxBounds: [
+      [-34.0, -74.0],
+      [5.0, -34.0]
+    ],
+    maxBoundsViscosity: 1.0,
+    minZoom: 4,
+    maxZoom: 14
+  }).setView([-30.2, -52.9], 7);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: "© OpenStreetMap"
+  }).addTo(map);
+
+  const cidades = [
+    { nome: "Luciano e Cris", cidade: "Caçapava do Sul (RS)", coords: [-30.5144, -53.4825] },
+    { nome: "Marcelo e Rossane", cidade: "Curitiba (PR)", coords: [-25.4284, -49.2733] },
+    { nome: "Zeca e Mary", cidade: "Curitiba (PR)", coords: [-25.4284, -49.2733] },
+    { nome: "Afonso e Salete", cidade: "Jaraguá do Sul (SC)", coords: [-26.4851, -49.0713] },
+    { nome: "Marcos e Simone", cidade: "Boa Vista (RR)", coords: [2.8235, -60.6758] },
+    { nome: "Renato e Mirene", cidade: "Rio Grande (RS)", coords: [-32.0349, -52.1071] },
+    { nome: "Joelsio e Eozana", cidade: "Torres (RS)", coords: [-29.3333, -49.7333] },
+    { nome: "Marcos e Regina", cidade: "Itajaí (SC)", coords: [-26.9101, -48.6706] },
+    { nome: "Zezinho e Elaine", cidade: "Itaituba (PA)", coords: [-4.2733, -55.9833] },
+    { nome: "Delio e Carla", cidade: "Belém (PA)", coords: [-1.4558, -48.5036] },
+    { nome: "Roni e Bia", cidade: "Três Cachoeiras (RS)", coords: [-29.4489, -49.9272] },
+    { nome: "Sebastião e Rosângela", cidade: "Caraguatatuba (SP)", coords: [-23.6206, -45.4133] },
+    { nome: "Valdir e Marcia", cidade: "Curitiba (PR)", coords: [-25.4284, -49.2733] },
+    { nome: "Marco e Clarice", cidade: "Juiz de Fora (MG)", coords: [-21.7642, -43.3503] },
+    { nome: "Isaque e Fabiana", cidade: "Cabreúva (SP)", coords: [-23.3069, -47.1283] },
+    { nome: "Ricardo e Deise", cidade: "Piraquara (PR)", coords: [-25.4433, -49.0592] },
+    { nome: "Beto e Duda", cidade: "Estância Velha (RS)", coords: [-29.6536, -51.1739] },
+    { nome: "Herberto e Elenita", cidade: "Passo de Torres (SC)", coords: [-29.3247, -49.7223] },
+    { nome: "Neri e Mariza", cidade: "Três Cachoeiras (RS)", coords: [-29.4489, -49.9272] },
+    { nome: "Luiz e Lourdes", cidade: "Santa Cruz do Sul (RS)", coords: [-29.7220, -52.4340] },
+    { nome: "Edson e Mery", cidade: "Imaruí (SC)", coords: [-28.3462, -48.8177] },
+    { nome: "Elói e Isabel", cidade: "Gravataí (RS)", coords: [-29.9444, -50.9917] },
+    { nome: "Valdir Bressan e Biga", cidade: "Jaraguá do Sul (SC)", coords: [-26.4851, -49.0713] },
+    { nome: "Renato e Sueli", cidade: "Marília (SP)", coords: [-22.2139, -49.9501] },
+    { nome: "George e Leiza", cidade: "Serra (ES)", coords: [-20.1286, -40.3075] },
+    { nome: "George e Leiza", cidade: "Serra (ES)", coords: [-20.1286, -40.3075] },
+	{ nome: "Jodoe e Michele", cidade: "Campo Bom (RS)", coords: [-29.6778, -51.0606] },
+	{ nome: "Ivo e Marlene", cidade: "Gramado (RS)", coords: [-29.3733, -50.8753] },
+	{ nome: "Luciano e Cris", cidade: "Caçapava do Sul (RS)", coords: [-30.5144, -53.4825] },
+	{ nome: "Marcelo e Rossane", cidade: "Curitiba (PR)", coords: [-25.4284, -49.2733] },
+	{ nome: "Zeca e Mary", cidade: "Curitiba (PR)", coords: [-25.4284, -49.2733] },
+	{ nome: "Afonso e Salete", cidade: "Jaraguá do Sul (SC)", coords: [-26.4851, -49.0713] },
+	{ nome: "Marcos e Simone", cidade: "Boa Vista (RR)", coords: [2.8235, -60.6758] },
+	{ nome: "Renato e Mirene", cidade: "Rio Grande (RS)", coords: [-32.0349, -52.1071] },
+	{ nome: "Joelsio e Eozana", cidade: "Torres (RS)", coords: [-29.3333, -49.7333] },
+	{ nome: "Marcos e Regina", cidade: "Itajaí (SC)", coords: [-26.9101, -48.6706] },
+	{ nome: "Zezinho e Elaine", cidade: "Itaituba (PA)", coords: [-4.2733, -55.9833] },
+	{ nome: "Delio e Carla", cidade: "Belém (PA)", coords: [-1.4558, -48.5036] },
+	{ nome: "Roni e Bia", cidade: "Três Cachoeiras (RS)", coords: [-29.4489, -49.9272] },
+	{ nome: "Sebastião e Rosângela", cidade: "Caraguatatuba (SP)", coords: [-23.6206, -45.4133] },
+	{ nome: "Valdir e Marcia", cidade: "Curitiba (PR)", coords: [-25.4284, -49.2733] },
+	{ nome: "Marco e Clarice", cidade: "Juiz de Fora (MG)", coords: [-21.7642, -43.3503] },
+	{ nome: "Isaque e Fabiana", cidade: "Cabreúva (SP)", coords: [-23.3069, -47.1283] },
+	{ nome: "Ricardo e Deise", cidade: "Piraquara (PR)", coords: [-25.4433, -49.0592] },
+	{ nome: "Beto e Duda", cidade: "Estância Velha (RS)", coords: [-29.6536, -51.1739] },
+	{ nome: "Odones e Leila", cidade: "Marechal Cândido Rondon (PR)", coords: [-24.5566, -54.0572] },
+	{ nome: "Herberto e Elenita", cidade: "Passo de Torres (SC)", coords: [-29.3247, -49.7223] },
+	{ nome: "Neri e Mariza", cidade: "Três Cachoeiras (RS)", coords: [-29.4489, -49.9272] },
+	{ nome: "Luiz e Lourdes", cidade: "Santa Cruz do Sul (RS)", coords: [-29.7220, -52.4340] },
+	{ nome: "Edson e Mery", cidade: "Imarui (SC)", coords: [-28.3462, -48.8177] },
+	{ nome: "Elói e Isabel", cidade: "Gravataí (RS)", coords: [-29.9444, -50.9917] },
+	{ nome: "Valdir Bressan e Biga", cidade: "Jaraguá do Sul (SC)", coords: [-26.4851, -49.0713] },
+	{ nome: "Renato e Sueli", cidade: "Marília (SP)", coords: [-22.2139, -49.9501] },
+	{ nome: "George e Leiza", cidade: "Serra (ES)", coords: [-20.1286, -40.3075] },
+	{ nome: "Juarez e Eliane", cidade: "Gramado (RS)", coords: [-29.3733, -50.8753] },
+	{ nome: "Beto e Keila", cidade: "Novo Hamburgo (RS)", coords: [-29.6875, -51.1328] },
+	{ nome: "Ravi e Luci", cidade: "Santo Anastácio (SP)", coords: [-21.9743, -51.6523] },
+	{ nome: "Jairo", cidade: "Santa Rita (PY)", coords: [-25.7833, -55.0666] },
+	{ nome: "João e Eliz", cidade: "Campo Grande (MS)", coords: [-20.4697, -54.6200] },
+	{ nome: "Felix e Silvia", cidade: "Farroupilha (RS)", coords: [-29.2225, -51.3419] },
+	{ nome: "Dirceu e Maris", cidade: "Sapucaia do Sul (RS)", coords: [-29.8276, -51.1463] },
+	{ nome: "Ory e Eliane", cidade: "Sapucaia do Sul (RS)", coords: [-29.8276, -51.1463] },
+	{ nome: "Jose Delcio Steinbach", cidade: "Florianópolis (SC)", coords: [-27.5954, -48.5480] },
+	{ nome: "Astor", cidade: "Alto Paraná (PY)", coords: [-25.60654918893691, -54.962545258424676] }
+
+  ];
+
+  const markers = [];
+  cidades.forEach(c => {
+    const marker = L.marker(c.coords)
+      .addTo(map)
+      .bindPopup(`<b>${c.nome}</b><br>${c.cidade}`);
+    markers.push({ marker, data: c });
+  });
+
+  const listEl = document.getElementById("list");
+
+  function renderList(filtro = "") {
+    listEl.innerHTML = "";
+    cidades
+      .filter(c => c.nome.toLowerCase().includes(filtro.toLowerCase()))
+      .forEach(c => {
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = `<b>${c.nome}</b><br><small>${c.cidade}</small>`;
+        div.onclick = () => {
+          const mk = markers.find(m => m.data === c).marker;
+          map.setView(c.coords, 10);
+          mk.openPopup();
+          sidebar.classList.remove("open");
+        };
+        listEl.appendChild(div);
+      });
+  }
+
+  renderList();
+
+  document.getElementById("search").addEventListener("input", e => {
+    renderList(e.target.value);
+  });
+
+  const sidebar = document.getElementById("sidebar");
+  const menuBtn = document.getElementById("menuBtn");
+  const closeSidebar = document.getElementById("closeSidebar");
+
+  menuBtn.onclick = () => sidebar.classList.add("open");
+  closeSidebar.onclick = () => sidebar.classList.remove("open");
+  
+  const addForm = document.getElementById("addForm");
+const showAddForm = document.getElementById("showAddForm");
+const cancelAddForm = document.getElementById("cancelAddForm");
+
+// abrir formulário
+showAddForm.onclick = () => {
+  addForm.style.display = "block";
+  showAddForm.style.display = "none";
+};
+
+// fechar formulário
+cancelAddForm.onclick = () => {
+  addForm.style.display = "none";
+  showAddForm.style.display = "block";
+};
+
+function adicionarCliente() {
+  const nome = document.getElementById("nomeInput").value.trim();
+  const cidade = document.getElementById("cidadeInput").value.trim();
+  const lat = parseFloat(document.getElementById("latInput").value);
+  const lng = parseFloat(document.getElementById("lngInput").value);
+
+  if (!nome || !cidade || isNaN(lat) || isNaN(lng)) {
+    alert("Preencha todos os campos corretamente!");
+    return;
+  }
+
+  const novo = { nome, cidade, coords: [lat, lng] };
+  
+  cidades.push(novo);
+
+  const marker = L.marker([lat, lng])
+    .addTo(map)
+    .bindPopup(`<b>${nome}</b><br>${cidade}`);
+
+  markers.push({ marker, data: novo });
+
+  // atualizar lista
+  renderList();
+
+  // fechar formulário após adicionar
+  addForm.style.display = "none";
+  showAddForm.style.display = "block";
+
+  // limpar campos
+  document.getElementById("nomeInput").value = "";
+  document.getElementById("cidadeInput").value = "";
+  document.getElementById("latInput").value = "";
+  document.getElementById("lngInput").value = "";
+}
+
+document.getElementById("addBtn").onclick = adicionarCliente;
+
+</script>
+
+
+</body>
+</html>
